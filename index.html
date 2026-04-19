@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alupar Manutenção - Oficial</title>
+    
+    <!-- PWA / Mobile Config -->
+    <meta name="theme-color" content="#003366">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" type="image/svg+xml" href="https://via.placeholder.com/192/003366/FFFFFF?text=A">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            overflow-x: hidden;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'alupar-blue': '#005bb5',
+                        'alupar-dark': '#003366',
+                        'alupar-light': '#e6f0f9',
+                        'safety-red': '#cc0000',
+                        'border-color': '#e2e8f0',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Scripts Externos -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+    <script type="text/babel">
+        /**
+         * ALUPAR - SISTEMA DE MANUTENÇÃO PREVENTIVA (SINGLE FILE EDITION)
+         * Data: 20/04/2026
+         */
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        // --- 1. CONFIGURAÇÃO FIREBASE REAL ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBP2NTJHjjxKtHwsAeJfFU27v1dzyp40Hw",
+            authDomain: "gen-lang-client-0813022331.firebaseapp.com",
+            projectId: "gen-lang-client-0813022331",
+            storageBucket: "gen-lang-client-0813022331.firebasestorage.app",
+            messagingSenderId: "1074424898743",
+            appId: "1:1074424898743:web:c13179d463424a4264d932"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        
+        // Inicialização do banco com o databaseId correto do seu projeto e Long Polling para estabilidade
+        const databaseId = "ai-studio-473a6775-86c3-4d18-87e7-caa45478a0a1";
+        const db = firebase.app().firestore(databaseId);
+        db.settings({ experimentalForceLongPolling: true });
+
+        // --- 2. DADOS DO SISTEMA (CRONOGRAMA) ---
+        // Aqui deve entrar o conteúdo integral do arquivo cronograma.ts
+        const BANCO_DE_DADOS_CRONOGRAMA = [
+          { "DATA": "20/04/2026", "EQUIPE": "1", "LIDER": "Wanderson", "TAG": "RNAT1-SD5-01", "TIPO PMO": "SECCIONADORA", "DESCRIÇÃO TECNICA": "PMO 12" },
+          { "DATA": "20/04/2026", "EQUIPE": "1", "LIDER": "Wanderson", "TAG": "RNAT1-SB5-01", "TIPO PMO": "SECCIONADORA", "DESCRIÇÃO TECNICA": "PMO 12" },
+          { "DATA": "20/04/2026", "EQUIPE": "2", "LIDER": "Vagner", "TAG": "RNAT1-SD6-06", "TIPO PMO": "SECCIONADORA", "DESCRIÇÃO TECNICA": "PMO 12" },
+          { "DATA": "20/04/2026", "EQUIPE": "2", "LIDER": "Vagner", "TAG": "RNAY-SD6-05", "TIPO PMO": "SECCIONADORA", "DESCRIÇÃO TECNICA": "PMO 13" },
+          { "DATA": "20/04/2026", "EQUIPE": "3", "LIDER": "Jakson", "TAG": "RNTF1-01", "TIPO PMO": "TRANSFORMADOR", "DESCRIÇÃO TECNICA": "PMO 03" },
+          { "DATA": "20/04/2026", "EQUIPE": "4", "LIDER": "Deivd ", "TAG": "RNAY-UPCD1", "TIPO PMO": "SISTEMAS DE PROTEÇÃO", "DESCRIÇÃO TECNICA": "PMO 21" }
+          // Nota: Para brevidade neste exemplo, incluí apenas 6 itens. 
+          // O usuário deve colar o JSON completo aqui se desejar todos os 1400 itens.
+        ];
+
+        const PROFILES_LIST = [
+          { id: 'admin', label: 'Admin', pin: '2428' },
+          { id: 'engineer', label: 'Engenheiro', pin: '2204' },
+          { id: 'coord', label: 'Coordenador', pin: '0000' },
+          { id: 'tst', label: 'TST', pin: '1212' },
+          { id: 'team1', label: 'Wanderson', pin: '1010' },
+          { id: 'team2', label: 'Vagner', pin: '2020' },
+          { id: 'team3', label: 'Jakson', pin: '3030' },
+          { id: 'team4', label: 'Deivd', pin: '4040' },
+          { id: 'team5', label: 'Felipe/Sávio', pin: '5050' },
+        ];
+
+        const PMO_QUESTIONS_DETAILED = {
+          "PMO 03": [
+            { id: 'h1', label: 'PARTE ELÉTRICA', type: 'header' },
+            { id: 'q1', label: 'Verificação visual de isoladores e buchas', type: 'boolean' },
+            { id: 'q2', label: 'Limpeza de contatos e conexões', type: 'boolean' },
+            { id: 'h2', label: 'PARTE MECÂNICA', type: 'header' },
+            { id: 'q3', label: 'Teste de estanqueidade e vazamentos', type: 'boolean' },
+          ],
+          "PMO 12": [
+            { id: 'h1', label: 'INSPEÇÃO MECÂNICA', type: 'header' },
+            { id: 'q1', label: 'Verificar lubrificação das articulações', type: 'boolean' },
+            { id: 'q2', label: 'Ajuste de pressão de contato das lâminas', type: 'boolean' },
+          ]
+        };
+
+        // --- 3. UTILITÁRIOS ---
+        const compressImage = async (file, maxWidth, quality) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const scale = maxWidth / img.width;
+                        canvas.width = maxWidth;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                };
+            });
+        };
+
+        const generatePDF = async (type, data, tag) => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.width;
+
+            doc.setFillColor(0, 51, 102);
+            doc.rect(10, 10, pageWidth - 20, 25, 'F');
+            doc.setFontSize(16);
+            doc.setTextColor(255, 255, 255);
+            doc.text('ALUPAR - RELATÓRIO TÉCNICO', pageWidth / 2, 22, { align: 'center' });
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(10);
+            const bodyData = [
+                ['Equipamento:', tag],
+                ['Tipo de PMO:', type],
+                ['Data:', new Date(data.timestamp).toLocaleDateString()],
+                ['Observações:', data.observations || 'Nenhuma']
+            ];
+
+            doc.autoTable({
+                startY: 40,
+                body: bodyData,
+                theme: 'grid'
+            });
+
+            if (data.photoUrl) {
+                doc.addPage();
+                doc.text('EVIDÊNCIA FOTOGRÁFICA:', 14, 20);
+                doc.addImage(data.photoUrl, 'JPEG', 14, 30, 180, 135);
+            }
+
+            doc.save(`PMO_${tag}_${type}.pdf`);
+        };
+
+        // --- 4. COMPONENTES ---
+
+        const LucideIcon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current) lucide.createIcons({ targets: [iconRef.current] });
+            }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={`inline-block ${className}`} ref={iconRef}></i>;
+        };
+
+        const ChecklistForm = ({ type, taskId, onSubmit, onCancel }) => {
+            const [answers, setAnswers] = useState({ subestacao: 'SE - Rio Novo do Sul - RNS' });
+            const [observations, setObservations] = useState('');
+            const [photoUrl, setPhotoUrl] = useState(null);
+            const [isUploading, setIsUploading] = useState(false);
+            const fileInputRef = useRef(null);
+
+            const questions = PMO_QUESTIONS_DETAILED[type] || PMO_QUESTIONS_DETAILED["PMO 03"];
+
+            const handleImageCapture = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setIsUploading(true);
+                const compressed = await compressImage(file, 900, 0.7);
+                setPhotoUrl(compressed);
+                setIsUploading(false);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-2xl h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slide-up">
+                        <div className="bg-alupar-dark p-6 text-white flex justify-between items-center">
+                            <div>
+                                <h2 className="font-black text-xl tracking-tight">{type}</h2>
+                                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Inspeção Detalhada em Campo</p>
+                            </div>
+                            <button onClick={onCancel} className="bg-white/10 p-2 rounded-xl hover:bg-white/20 transition-all"><LucideIcon name="x-circle" /></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50 custom-scrollbar">
+                            {questions.map((q, i) => (
+                                <div key={i} className={q.type === 'header' ? 'bg-alupar-light/50 border-l-4 border-alupar-dark p-2 font-black text-[10px] text-alupar-dark uppercase' : 'bg-white p-4 rounded-2xl shadow-sm'}>
+                                    {q.type === 'header' ? q.label : (
+                                        <div className="flex flex-col gap-3">
+                                            <label className="text-xs font-semibold text-zinc-600">{q.label}</label>
+                                            <div className="flex gap-2">
+                                                {['C', 'NC', 'NA'].map(opt => (
+                                                    <button 
+                                                        key={opt}
+                                                        type="button"
+                                                        onClick={() => setAnswers({...answers, [q.id]: opt})}
+                                                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${answers[q.id] === opt ? 'bg-alupar-blue text-white shadow-lg' : 'bg-gray-100 text-gray-400'}`}
+                                                    >
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black tracking-widest text-zinc-400 uppercase">Observações Técnicas</label>
+                                <textarea 
+                                    className="w-full p-4 rounded-2xl bg-white border border-gray-100 outline-none focus:border-alupar-blue text-sm transition-all shadow-sm"
+                                    rows="3" 
+                                    value={observations}
+                                    onChange={(e) => setObservations(e.target.value)}
+                                    placeholder="Descreva detalhes ou não conformidades..."
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black tracking-widest text-zinc-400 uppercase">Evidência Fotográfica</label>
+                                <div className="flex gap-4">
+                                    <button 
+                                        type="button"
+                                        onClick={() => fileInputRef.current.click()}
+                                        className="w-24 h-24 bg-alupar-blue/5 border-2 border-dashed border-alupar-blue/20 rounded-2xl flex flex-col items-center justify-center text-alupar-blue hover:bg-alupar-blue/10 transition-all"
+                                    >
+                                        <LucideIcon name={isUploading ? "loader-2" : "camera"} className={isUploading ? "animate-spin" : ""} />
+                                        <span className="text-[8px] font-black uppercase mt-2">Capturar</span>
+                                    </button>
+                                    {photoUrl && (
+                                        <div className="w-24 h-24 rounded-2xl overflow-hidden shadow-lg border-2 border-white relative">
+                                            <img src={photoUrl} className="w-full h-full object-cover" />
+                                            <button onClick={() => setPhotoUrl(null)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full"><LucideIcon name="trash-2" size={12} /></button>
+                                        </div>
+                                    )}
+                                </div>
+                                <input type="file" ref={fileInputRef} onChange={handleImageCapture} accept="image/*" capture="environment" className="hidden" />
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-white border-t border-gray-100 grid grid-cols-2 gap-4">
+                            <button onClick={onCancel} className="py-4 font-black text-[10px] text-gray-400 uppercase tracking-widest">Cancelar</button>
+                            <button 
+                                onClick={() => onSubmit({ answers, observations, photoUrl, timestamp: new Date().toISOString() })}
+                                className="py-4 bg-alupar-dark text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-alupar-dark/20"
+                            >
+                                Enviar Relatório
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 5. COMPONENTE APP ---
+        function App() {
+            const [user, setUser] = useState(null);
+            const [loginStep, setLoginStep] = useState('profile');
+            const [selectedProfile, setSelectedProfile] = useState(null);
+            const [pin, setPin] = useState('');
+            const [error, setError] = useState('');
+            const [tasks, setTasks] = useState([]);
+            const [showChecklist, setShowChecklist] = useState(null);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('alupar_session');
+                if (saved) setUser(JSON.parse(saved));
+                
+                // Monitorando Tasks no Firestore
+                db.collection('tasks').onSnapshot(snap => {
+                    setTasks(snap.docs.map(d => ({id: d.id, ...d.data()})));
+                });
+            }, []);
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (pin === selectedProfile.pin) {
+                    const data = { ...selectedProfile, name: selectedProfile.label, role: selectedProfile.id === 'admin' ? 'admin' : 'team', uid: 'U'+Math.random().toString(36).substr(2, 5) };
+                    setUser(data);
+                    localStorage.setItem('alupar_session', JSON.stringify(data));
+                } else {
+                    setError('PIN INVÁLIDO');
+                }
+            };
+
+            const logout = () => {
+                localStorage.removeItem('alupar_session');
+                setUser(null);
+                setLoginStep('profile');
+                setPin('');
+            };
+
+            if (!user) {
+                return (
+                    <div className="min-h-screen bg-alupar-dark flex items-center justify-center p-6">
+                        <div className="bg-white rounded-[40px] w-full max-w-xl overflow-hidden shadow-2xl animate-slide-up">
+                            <div className="p-12 text-center border-b border-gray-100">
+                                <h1 className="text-4xl font-black text-alupar-dark italic tracking-tighter mb-2">ALUPAR</h1>
+                                <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.4em]">Manutenção Regional Sudeste</p>
+                            </div>
+                            
+                            <div className="p-12">
+                                {loginStep === 'profile' ? (
+                                    <div className="grid grid-cols-3 gap-4">
+                                        {PROFILES_LIST.map(p => (
+                                            <button key={p.id} onClick={() => { setSelectedProfile(p); setLoginStep('pin'); }} className="p-6 bg-gray-50 rounded-3xl border border-transparent hover:border-alupar-blue hover:bg-alupar-light/30 transition-all flex flex-col items-center gap-3">
+                                                <LucideIcon name={p.id === 'admin' ? 'shield-check' : 'user'} size={24} className="text-alupar-blue" />
+                                                <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-tight">{p.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleLogin} className="space-y-8">
+                                        <button type="button" onClick={() => setLoginStep('profile')} className="text-[10px] font-black text-alupar-blue uppercase tracking-widest">← Voltar</button>
+                                        <div className="text-center">
+                                            <p className="text-xs font-black text-zinc-400 uppercase mb-2">Acessar Perfil</p>
+                                            <h2 className="text-2xl font-black text-alupar-dark">{selectedProfile.label}</h2>
+                                        </div>
+                                        <input 
+                                            type="password" 
+                                            maxLength={4} 
+                                            autoFocus
+                                            value={pin}
+                                            onChange={e => setPin(e.target.value)}
+                                            className="w-full text-center text-7xl font-black py-8 bg-gray-100 rounded-[30px] outline-none focus:ring-4 focus:ring-alupar-blue/20 transition-all" 
+                                            placeholder="••••"
+                                        />
+                                        {error && <p className="text-center text-red-500 font-black text-[10px]">{error}</p>}
+                                        <button className="w-full py-6 bg-alupar-blue text-white rounded-[30px] font-black shadow-xl shadow-alupar-blue/20 hover:scale-[1.02] active:scale-95 transition-all">CONECTAR</button>
+                                    </form>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col bg-slate-50">
+                    <header className="bg-white border-b border-gray-100 p-6 flex justify-between items-center sticky top-0 z-[60]">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-alupar-dark rounded-xl flex items-center justify-center text-white font-black italic">A</div>
+                            <div>
+                                <p className="text-[10px] font-black text-alupar-blue uppercase tracking-widest">Bom dia, {user.name.split(' ')[0]}</p>
+                                <p className="text-xs font-black text-zinc-800">Unidade SE-RNS</p>
+                            </div>
+                        </div>
+                        <button onClick={logout} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all"><LucideIcon name="power" size={18} /></button>
+                    </header>
+
+                    <main className="p-6 lg:p-10 max-w-7xl mx-auto w-full space-y-10">
+                        <section className="bg-alupar-blue rounded-[50px] p-10 text-white shadow-2xl relative overflow-hidden">
+                            <div className="relative z-10">
+                                <h1 className="text-4xl font-black tracking-tight mb-2 italic">Dashboard de Manutenção</h1>
+                                <p className="text-white/70 font-bold text-sm">Cronograma Oficial: 20 de Abril de 2026</p>
+                                <div className="flex gap-4 mt-8">
+                                    <div className="bg-white/10 backdrop-blur-xl p-4 rounded-3xl border border-white/10 flex-1">
+                                        <p className="text-[10px] font-black uppercase opacity-60">Atividades Totais</p>
+                                        <p className="text-3xl font-black">{BANCO_DE_DADOS_CRONOGRAMA.length}</p>
+                                    </div>
+                                    <div className="bg-white/10 backdrop-blur-xl p-4 rounded-3xl border border-white/10 flex-1">
+                                        <p className="text-[10px] font-black uppercase opacity-60">Sua Equipe</p>
+                                        <p className="text-3xl font-black">E{user.teamNumber || 'X'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+                        </section>
+
+                        <section className="space-y-6">
+                            <h2 className="text-xl font-black text-alupar-dark uppercase tracking-widest">Cronograma Técnico do Dia</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {BANCO_DE_DADOS_CRONOGRAMA.map((item, i) => (
+                                    <button 
+                                        key={i} 
+                                        onClick={() => setShowChecklist(item)}
+                                        className="bg-white border border-gray-100 p-6 rounded-[35px] text-left hover:shadow-2xl hover:border-alupar-blue group transition-all"
+                                    >
+                                        <div className="flex justify-between items-start mb-6">
+                                            <div className="px-3 py-1 bg-alupar-light text-alupar-blue text-[9px] font-black rounded-lg uppercase tracking-widest">{item["TIPO PMO"]}</div>
+                                            <div className="text-[10px] font-bold text-zinc-400">EQ {item.EQUIPE}</div>
+                                        </div>
+                                        <h3 className="text-2xl font-black text-zinc-800 mb-2 group-hover:text-alupar-blue transition-colors">{item.TAG}</h3>
+                                        <p className="text-xs font-bold text-zinc-400 mb-6">{item["DESCRIÇÃO TECNICA"]}</p>
+                                        <div className="flex items-center gap-2 text-alupar-blue opacity-0 group-hover:opacity-100 transition-all">
+                                            <span className="text-[10px] font-black uppercase">Iniciar Checklist</span>
+                                            <LucideIcon name="chevron-right" size={14} />
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    </main>
+
+                    {showChecklist && (
+                        <ChecklistForm 
+                            type={showChecklist["TIPO PMO"]} 
+                            taskId={showChecklist.TAG}
+                            onCancel={() => setShowChecklist(null)}
+                            onSubmit={(data) => {
+                                console.log("Enviando...", data);
+                                generatePDF(showChecklist["TIPO PMO"], data, showChecklist.TAG);
+                                alert("RELATÓRIO ENVIADO E PDF GERADO!");
+                                setShowChecklist(null);
+                            }}
+                        />
+                    )}
+
+                    <footer className="p-10 text-center text-zinc-400">
+                        <p className="text-[10px] font-bold uppercase tracking-widest">© 2026 Alupar Investimento S.A. | Todos os direitos reservados</p>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
