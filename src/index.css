@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-alupar-blue: #003366;
+  --color-alupar-dark: #001F3F;
+  --color-alupar-light: #E6F0F9;
+  --color-bg-body: #F4F7F9;
+  --color-text-dark: #1A1C1E;
+  --color-border-color: #E2E8F0;
+  --color-safety-red: #DC3545;
+  --color-safety-yellow: #FFC107;
+  --color-safety-green: #28A745;
+  
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-body text-text-dark antialiased font-sans;
+  }
+}
+
+/* Custom Components Patterns */
+.hd-card {
+  @apply bg-white p-6 rounded-xl shadow-md border border-border-color/40 transition-all;
+}
+
+.hd-card-header {
+  @apply flex items-center justify-between mb-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-50 pb-3;
+}
+
+.hd-status-dot {
+  @apply w-2 h-2 rounded-full;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-alupar-blue/20 rounded-full hover:bg-alupar-blue/40;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.2s ease-in-out 0s 2;
+}

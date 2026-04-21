@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "User Profile",
+      "description": "User profile data stored after login.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "engineer", "tst", "team", "coordinator"] },
+        "teamNumber": { "type": "integer" }
+      },
+      "required": ["uid", "name", "role"]
+    },
+    "Task": {
+      "title": "Maintenance Task",
+      "description": "A scheduled maintenance operation.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "assignedTeams": { "type": "array", "items": { "type": "integer" } },
+        "groundingConfirmed": { "type": "object" },
+        "status": { "type": "string", "enum": ["scheduled", "in_progress", "completed"] }
+      }
+    },
+    "Checklist": {
+      "title": "PMO Checklist",
+      "description": "Digital completion of an Alupar PMO form.",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string" },
+        "teamId": { "type": "integer" },
+        "pmoType": { "type": "string" },
+        "tag": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/profiles/{uid}": {
+      "schema": "Profile",
+      "description": "Root collection for user identity and roles."
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Master list of maintenance operations."
+    },
+    "/checklists/{checklistId}": {
+      "schema": "Checklist",
+      "description": "Completed maintenance records."
+    },
+    "/releases/{releaseId}": {
+      "schema": "object",
+      "description": "Team release authorizations for the day."
+    },
+    "/safety_alerts/{alertId}": {
+      "schema": "object",
+      "description": "Field safety reports."
+    }
+  }
+}

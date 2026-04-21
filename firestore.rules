@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    
+    function profilePath(uid) { return /databases/$(database)/documents/profiles/$(uid); }
+    function hasProfile() { return exists(profilePath(request.auth.uid)); }
+    function getProfile() { return get(profilePath(request.auth.uid)).data; }
+    function getRole() { return hasProfile() ? getProfile().role : 'none'; }
+    
+    function isAdmin() { return getRole() == 'admin'; }
+    function isEngineer() { return getRole() in ['admin', 'engineer', 'coordinator']; }
+    function isTST() { return getRole() in ['admin', 'tst']; }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Validations ---
+    function isValidProfile(data) {
+      return data.role is string &&
+             data.name is string &&
+             data.uid == request.auth.uid;
+    }
+
+    match /profiles/{uid} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isOwner(uid) && isValidProfile(incoming());
+    }
+
+    match /tasks/{taskId} {
+      allow list, get: if isSignedIn();
+      allow create: if isEngineer();
+      allow update: if isEngineer() || (
+        isSignedIn() && hasProfile() &&
+        // Action: Grounding Confirmation
+        incoming().diff(existing()).affectedKeys().hasAny(['groundingConfirmed']) &&
+        incoming().groundingConfirmed.keys().hasAll(existing().groundingConfirmed.keys()) &&
+        incoming().groundingConfirmed[string(getProfile().teamNumber)] == true
+      );
+    }
+
+    match /releases/{releaseId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isEngineer();
+      allow delete: if isAdmin();
+    }
+
+    match /checklists/{checklistId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    incoming().taskId is string &&
+                    incoming().teamId is int &&
+                    incoming().timestamp == request.time &&
+                    incoming().authorUid == request.auth.uid &&
+                    (isEngineer() || (hasProfile() && incoming().teamId == getProfile().teamNumber));
+      allow update: if isEngineer();
+    }
+
+    match /safety_alerts/{alertId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && 
+                    incoming().reporterUid == request.auth.uid &&
+                    incoming().authorUid == request.auth.uid &&
+                    incoming().timestamp == request.time &&
+                    incoming().status == 'pending';
+      allow update: if isEngineer() || (isTST() && incoming().diff(existing()).affectedKeys().hasOnly(['status']));
+    }
+
+    match /system_test/connection {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
